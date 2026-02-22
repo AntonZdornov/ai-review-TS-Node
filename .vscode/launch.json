@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug ai-review (staged)",
+      "type": "python",
+      "request": "launch",
+      "module": "ai_review",
+      "args": ["--staged", "--provider", "local"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
