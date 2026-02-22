@@ -33,14 +33,14 @@ def format_report_text(r) -> str:
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="ai-review")
-    ap.add_argument("--provider", choices=["openai", "local"], default="openai")
-    ap.add_argument("--model", default="")
-    ap.add_argument("--base-url", dest="base_url", default="")
-    ap.add_argument("--range", dest="range_spec", default="")
-    ap.add_argument("--staged", action="store_true")
-    ap.add_argument("--mode", choices=["quick", "deep"], default="quick")
-    ap.add_argument("--max-chars", type=int, default=12000)
+    ap = argparse.ArgumentParser(prog="ai-review", description="Local AI code review for git diffs")
+    ap.add_argument("--provider", choices=["openai", "local"], default="local", help="Model provider")
+    ap.add_argument("--model", default="", help="Model name override")
+    ap.add_argument("--base-url", dest="base_url", default="http://localhost:11434", help="OpenAI-compatible base URL for local models")
+    ap.add_argument("--range", dest="range_spec", default="", help="Git range, e.g. HEAD~1..HEAD")
+    ap.add_argument("--staged", action="store_true", help="Review staged changes")
+    ap.add_argument("--mode", choices=["quick", "deep"], default="quick", help="Review depth")
+    ap.add_argument("--max-chars", type=int, default=12000, help="Max chars per request chunk")
     ap.add_argument("--out", default="", help="Write JSON report to file")
     args = ap.parse_args()
 

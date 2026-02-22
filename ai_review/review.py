@@ -24,21 +24,38 @@ class Report(BaseModel):
 
 
 SYSTEM_PROMPT = """\
-You are a senior engineer reviewing TypeScript/React and Node.js code changes from git diffs.
+Role: senior engineer (TypeScript/React + Node.js).
+You are reviewing code changes from git diffs.
 
-Focus on:
-- correctness/bugs (async/await, error handling, edge cases)
-- React hooks correctness (deps, stale closures, cleanup)
-- TypeScript safety (any, unsafe casts, narrowing)
-- security (input validation, injections, secrets, auth)
-- maintainability/testability (clear API contracts, missing tests)
-- performance pitfalls (unnecessary rerenders, heavy loops)
+Priorities:
+1) correctness/bugs: async/await, error handling, edge cases, race conditions, null/undefined
+2) React: useEffect/useMemo/useCallback deps, stale closures, cleanup, key in lists, controlled/uncontrolled inputs, SSR hazards (window/document)
+3) TypeScript: avoid any, unsafe assertions, unknown narrowing, broken types in DTOs
+4) Security: input validation, injection risks, secrets in logs, auth boundaries
+5) Maintainability/Testability: readability, missing tests, brittle logic
+6) Performance: unnecessary re-renders, expensive loops
 
 Rules:
-- Do NOT nitpick formatting.
+- Do NOT nitpick formatting/whitespace/Prettier unless it affects quality.
 - Provide concrete fixes.
-- If uncertain, mark severity=low and phrase as a note.
-Return STRICT JSON matching schema: {summary, issues[], positives[]}.
+- If uncertain, set severity="low" and phrase it as a note.
+- Output STRICT JSON ONLY. No extra text.
+
+Schema:
+{
+  "summary": string,
+  "issues": [
+    {
+      "file": string,
+      "line": number,
+      "severity": "low"|"medium"|"high",
+      "type": "bug"|"security"|"quality"|"perf"|"tests",
+      "message": string,
+      "suggestion": string
+    }
+  ],
+  "positives": [string]
+}
 """
 
 
@@ -54,11 +71,16 @@ def chunk_text(text: str, max_chars: int) -> list[str]:
 
 
 def build_user_prompt(diff_chunk: str, mode: str) -> str:
-    depth = "Be brief. Only medium/high issues." if mode == "quick" else "Be thorough. Include test suggestions."
+    depth = (
+        "Be brief. Only include medium/high issues and keep messages short."
+        if mode == "quick"
+        else "Be thorough. Include test suggestions (edge cases)."
+    )
     return f"""\
 Review this git diff chunk.
 
 {depth}
+Return JSON only and match the schema exactly. No extra text.
 
 ```diff
 {diff_chunk}
@@ -69,6 +91,11 @@ Review this git diff chunk.
 def _extract_text(resp) -> str:
     if hasattr(resp, "output_text") and resp.output_text:
         return resp.output_text
+    # Chat completions shape (local OpenAI-compatible servers)
+    if hasattr(resp, "choices") and resp.choices:
+        msg = getattr(resp.choices[0], "message", None)
+        if msg and getattr(msg, "content", None):
+            return msg.content
     # Best-effort for SDK response shapes
     if hasattr(resp, "output") and resp.output:
         parts = []
@@ -123,13 +150,22 @@ def run_review(
 
     for idx, chunk in enumerate(chunks, start=1):
         prompt = build_user_prompt(chunk, mode=mode)
-        resp = client.responses.create(
-            model=model,
-            input=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
-        )
+        if provider == "local":
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+        else:
+            resp = client.responses.create(
+                model=model,
+                input=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+            )
         text = _extract_text(resp)
         report = _parse_report(text)
 
