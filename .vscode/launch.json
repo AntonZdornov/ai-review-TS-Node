@@ -6,7 +6,7 @@
       "type": "python",
       "request": "launch",
       "module": "ai_review",
-      "args": ["--staged", "--provider", "local"],
+      "args": [ "--provider", "local"],
       "console": "integratedTerminal",
       "justMyCode": true
     }

@@ -1,2 +1,3 @@
 /ai_review.egg-info
 /.vscode
+.env
