@@ -1,3 +1,4 @@
 /ai_review.egg-info
 /.vscode
 .env
+/ai_review/__pycache__
