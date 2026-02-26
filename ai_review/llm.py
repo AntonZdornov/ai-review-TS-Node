@@ -14,8 +14,7 @@ def make_client(provider: str, base_url: str | None) -> OpenAI:
             raise RuntimeError("OPENAI_API_KEY is not set")
         return OpenAI(api_key=api_key)
 
-    # local
-    # Многие локальные сервера игнорируют ключ, но SDK требует строку
+    # local llm (e.g. ollama)
     api_key = os.getenv("LOCAL_LLM_API_KEY", "ollama")
     base = base_url or os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:11434/v1")
     return OpenAI(api_key=api_key, base_url=base)
